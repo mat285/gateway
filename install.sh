@@ -37,7 +37,7 @@ sudo systemctl stop gateway-server.service || true
 sudo systemctl disable gateway-server.service || true
 echo "Installing Gateway server version ${VERSION}..."
 
-curl --fail-with-body -Lo gateway https://github.com/mat285/gateway/releases/download/${VERSION}/gateway_${OS}_${ARCH}
+curl --fail-with-body -Lo gateway https://github.com/mat285/gateway/releases/download/${VERSION}/gateway-server_${OS}_${ARCH}
 sudo mv gateway /bin/gateway
 sudo chown root:root /bin/gateway
 sudo chmod a+x /bin/gateway
