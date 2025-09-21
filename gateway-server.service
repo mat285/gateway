@@ -1,5 +1,5 @@
 [Unit]
-Description=Lanlink daemon
+Description=Gateway Serve
 After=network.target
 
 [Service]
