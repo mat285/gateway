@@ -4,7 +4,7 @@ set -e
 
 VERSION=$1
 if [ -z "$VERSION" ]; then
-    VERSION=$(curl -sL https://api.github.com/repos/mat285/linklan/releases/latest | jq -r .name)
+    VERSION=$(curl -sL https://api.github.com/repos/mat285/gateway/releases/latest | jq -r .name)
     echo "No version specified, using latest release: ${VERSION}"
 fi
 
@@ -35,19 +35,19 @@ echo "Detected OS: ${OS}, Architecture: ${ARCH}"
 
 sudo systemctl stop gateway-server.service || true
 sudo systemctl disable gateway-server.service || true
-echo "Installing LinkLan daemon version ${VERSION}..."
+echo "Installing Gateway server version ${VERSION}..."
 
-curl --fail-with-body -Lo gateway https://github.com/mat285/linklan/releases/download/${VERSION}/gateway_${OS}_${ARCH}
+curl --fail-with-body -Lo gateway https://github.com/mat285/gateway/releases/download/${VERSION}/gateway_${OS}_${ARCH}
 sudo mv gateway /bin/gateway
 sudo chown root:root /bin/gateway
 sudo chmod a+x /bin/gateway
 
-curl --fail-with-body -Lo gateway-server.service https://github.com/mat285/linklan/releases/download/${VERSION}/gateway-server.service
+curl --fail-with-body -Lo gateway-server.service https://github.com/mat285/gateway/releases/download/${VERSION}/gateway-server.service
 sudo mv gateway-server.service /etc/systemd/system/gateway-server.service
 sudo chmod 644 /etc/systemd/system/gateway-server.service
 sudo chown root:root /etc/systemd/system/gateway-server.service
 
-curl --fail-with-body -Lo gateway https://github.com/mat285/linklan/releases/download/${VERSION}/example.yml
+curl --fail-with-body -Lo gateway https://github.com/mat285/gateway/releases/download/${VERSION}/example.yml
 sudo mkdir -p /etc/gateway
 sudo mv gateway /etc/gateway/example.yml
 sudo chown root:root /etc/gateway/example.yml
@@ -58,4 +58,4 @@ sudo chown root:root /etc/gateway
 sudo systemctl daemon-reload
 sudo systemctl enable gateway-server.service
 sudo systemctl start gateway-server.service
-echo "LinkLan daemon installed and started successfully."
+echo "Gateway server installed and started successfully."
