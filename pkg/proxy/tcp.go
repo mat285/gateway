@@ -6,6 +6,8 @@ import (
 	"io"
 	"net"
 	"sync"
+
+	"github.com/mat285/gateway/pkg/log"
 )
 
 type TCPProxyConfig struct {
@@ -34,7 +36,8 @@ func NewTCPProxy(config TCPProxyConfig) *TCPProxy {
 }
 
 func (p *TCPProxy) Start(ctx context.Context) error {
-	fmt.Println("Starting TCP proxy", p.Config.ListenPort, p.Config.Upstreams)
+	logger := log.GetLogger(ctx)
+	logger.Infof("Starting TCP proxy %s %v", p.Config.ListenPort, p.Config.Upstreams)
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", p.Config.ListenPort))
 	if err != nil {
 		return err
@@ -45,7 +48,7 @@ func (p *TCPProxy) Start(ctx context.Context) error {
 	defer p.cancel()
 	p.done = make(chan struct{})
 	defer close(p.done)
-	fmt.Println("TCP proxy started", p.Config.ListenPort, p.Config.Upstreams)
+	logger.Infof("TCP proxy started %s %v", p.Config.ListenPort, p.Config.Upstreams)
 	for {
 		select {
 		case <-ctx.Done():
@@ -56,7 +59,7 @@ func (p *TCPProxy) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("Accepted connection", conn.RemoteAddr())
+		logger.Infof("Accepted connection %s", conn.RemoteAddr())
 		go p.handleConnection(ctx, conn)
 	}
 }
@@ -70,17 +73,18 @@ func (p *TCPProxy) Stop() {
 }
 
 func (p *TCPProxy) handleConnection(ctx context.Context, conn net.Conn) {
+	logger := log.GetLogger(ctx)
 	defer func() {
 		err := recover()
 		if err != nil {
-			fmt.Println("Error handling connection", err)
+			logger.Infof("Error handling connection %v", err)
 		}
 	}()
 	upstream := p.getUpstream()
-	fmt.Println("Proxying to", upstream)
+	logger.Infof("Proxying to %s", upstream)
 	upstreamConn, err := net.Dial("tcp", upstream)
 	if err != nil {
-		fmt.Println("Error dialing upstream", upstream, err)
+		logger.Infof("Error dialing upstream %s %v", upstream, err)
 		return
 	}
 	defer upstreamConn.Close()

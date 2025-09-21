@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/mat285/gateway/pkg/log"
 	"github.com/mat285/gateway/pkg/server"
 	"github.com/spf13/cobra"
 )
@@ -16,7 +17,13 @@ func cmd(ctx context.Context) *cobra.Command {
 		Short: "Start the server",
 		Long:  "Start the server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			server := server.NewServer(server.Config{})
+			logger := log.New(log.Config{
+				Level: "info",
+			})
+			ctx = log.WithLogger(ctx, logger)
+			server := server.NewServer(server.Config{
+				CaddyFilePath: "./Caddyfile",
+			})
 			return server.Start(ctx)
 		},
 	}

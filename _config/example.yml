@@ -1,0 +1,2 @@
+caddyFilePath: /etc/caddy/Caddyfile
+serviceRefreshIntervalSeconds: 30
