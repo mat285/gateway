@@ -10,6 +10,7 @@ import (
 	"github.com/mat285/gateway/pkg/kubectl"
 	"github.com/mat285/gateway/pkg/log"
 	"github.com/mat285/gateway/pkg/proxy"
+	"github.com/mat285/gateway/pkg/wait"
 )
 
 type Config struct {
@@ -56,12 +57,13 @@ func NewServer(config Config) *Server {
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	logger := log.GetLogger(ctx)
 	ctx, s.cancel = context.WithCancel(ctx)
 	defer s.cancel()
 	s.done = make(chan struct{})
 	defer close(s.done)
 
-	var wg sync.WaitGroup
+	wg := wait.NewGroup()
 	run := func(ctx context.Context, f func(ctx context.Context)) {
 		wg.Add(1)
 		go func() {
@@ -75,15 +77,22 @@ func (s *Server) Start(ctx context.Context) error {
 	run(ctx, s.watchNodes)
 	run(ctx, s.watchServices)
 
-	wg.Wait()
-	return nil
+	err := wg.WaitTimeout(10 * time.Second)
+	if err != nil {
+		logger.Infof("error waiting for exit %v", err)
+	}
+	logger.Infof("Gateway server stopped")
+	return err
 }
 
 func (s *Server) watchServices(ctx context.Context) {
+	logger := log.GetLogger(ctx)
+	logger.Infof("starting service watcher")
 	s.fetchServices(ctx)
 	for {
 		select {
 		case <-ctx.Done():
+			logger.Infof("stopping service watcher")
 			return
 		case <-time.After(time.Duration(s.Config.ServiceRefreshIntervalSeconds) * time.Second):
 		}
@@ -120,7 +129,7 @@ func (s *Server) fetchServices(ctx context.Context) {
 					continue
 				}
 				logger.Infof("gateway port %s %s", parts[0], parts[1])
-				gatewayMap[parts[1]] = parts[0]
+				gatewayMap[parts[0]] = parts[1]
 				continue
 			}
 			if annotation == ServiceAnnotationGatewayReverseProxy {
@@ -139,44 +148,54 @@ func (s *Server) fetchServices(ctx context.Context) {
 				continue
 			}
 		}
+		if len(gatewayMap) == 0 && len(portConfigMap) == 0 {
+			logger.Infof("no gateway or reverse proxy config found for service %s/%s", service.Metadata.Namespace, service.Metadata.Name)
+			continue
+		}
 		for _, port := range service.Spec.Ports {
 			if port.NodePort.StringVal == "" {
 				continue
 			}
-			if _, ok := gatewayMap[port.NodePort.StringVal]; ok {
-				logger.Infof("gateway port found for %s", port.NodePort.StringVal)
-				portMap[port.NodePort.StringVal] = gatewayMap[port.NodePort.StringVal]
+			if gatewayPort, ok := gatewayMap[port.NodePort.StringVal]; ok {
+				logger.Infof("gateway port found for service %s/%s port %s -> %s", service.Metadata.Namespace, service.Metadata.Name, port.NodePort.StringVal, gatewayPort)
+				portMap[gatewayPort] = port.NodePort.StringVal
 				continue
 			}
 			if config, ok := portConfigMap[port.NodePort.StringVal]; ok {
-				logger.Infof("reverse proxy config found for %s", port.NodePort.StringVal)
+				logger.Infof("reverse proxy config found for service %s/%s port %s", service.Metadata.Namespace, service.Metadata.Name, port.NodePort.StringVal)
 				reverseProxyMap[port.NodePort.StringVal] = config
 				continue
 			}
-			logger.Infof("no gateway or reverse proxy config found for %s", port.NodePort.StringVal)
+			logger.Infof("no gateway or reverse proxy config found for service %s/%s port %s", service.Metadata.Namespace, service.Metadata.Name, port.NodePort.StringVal)
 		}
 	}
 	s.updateServiceProxies(ctx, portMap, reverseProxyMap)
-	s.updateCaddy(ctx)
+	// s.updateCaddy(ctx)
 }
 
 func (s *Server) updateServiceProxies(ctx context.Context, tcpPortMap map[string]string, reverseProxyMap map[string]ReverseProxyConfig) {
 	logger := log.GetLogger(ctx)
+	logger.Infof("updating service proxies")
 	s.Lock.Lock()
 	defer s.Lock.Unlock()
-	for nodePort, portName := range tcpPortMap {
-		existing, ok := s.TCPProxies[portName]
+	for gatewayPort, nodePort := range tcpPortMap {
+		logger.Infof("updating tcp service proxy forwarding gateway %s -> %s node port", gatewayPort, nodePort)
+		existing, ok := s.TCPProxies[gatewayPort]
 		if ok && (len(existing.Config.Upstreams) == 0 || !strings.HasSuffix(existing.Config.Upstreams[0], nodePort)) {
-			logger.Infof("stopping proxy %s", portName)
-			existing.Stop()
-			delete(s.TCPProxies, portName)
+			// logger.Infof("stopping proxy %s", gatewayPort)
+			// existing.Stop()
+			// delete(s.TCPProxies, gatewayPort)[
+			logger.Infof("proxy already exists for gateway %s -> %s", gatewayPort, nodePort)
+			continue
 		}
-		logger.Infof("new proxy %s %s", portName, nodePort)
+		logger.Infof("starting tcp service proxy %s -> %s", gatewayPort, nodePort)
 		s.newProxy <- ProxySpec{
-			GatewayPort: portName,
+			GatewayPort: gatewayPort,
 			NodePort:    nodePort,
 		}
 	}
+
+	logger.Infof("checking if reverse proxies have changed")
 	if areMapsEqual(reverseProxyMap, s.ReverseProxies) {
 		logger.Infof("no changes to reverse proxies")
 		return
@@ -209,9 +228,15 @@ func (s *Server) handleProxies(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			logger.Infof("stopping proxy handler")
+			s.Lock.Lock()
+			defer s.Lock.Unlock()
+			for _, tcpProxy := range s.TCPProxies {
+				tcpProxy.Stop()
+			}
 			return
 		case proxySpec := <-s.newProxy:
-			logger.Infof("New proxy %v", proxySpec)
+			logger.Infof("New proxy from %s -> %s", proxySpec.GatewayPort, proxySpec.NodePort)
 			s.Lock.Lock()
 			if _, ok := s.TCPProxies[proxySpec.GatewayPort]; ok {
 				s.Lock.Unlock()
@@ -245,15 +270,13 @@ func getUpstreamsForNodePort(nodes map[string]bool, nodePort string) []string {
 func (s *Server) watchProxy(ctx context.Context, spec ProxySpec, tcpProxy *proxy.TCPProxy) {
 	logger := log.GetLogger(ctx)
 	defer func() {
-		logger.Infof("Stopping TCP proxy %s", tcpProxy.Config.ListenPort)
+		logger.Infof("Stopping TCP proxy %s -> %s", tcpProxy.Config.ListenPort, spec.NodePort)
 		s.Lock.Lock()
 		delete(s.TCPProxies, tcpProxy.Config.ListenPort)
 		s.Lock.Unlock()
-
-		s.cancel()
-
+		s.newProxy <- spec
 	}()
-	logger.Infof("Starting TCP proxy")
+	logger.Infof("Starting TCP proxy %s -> %s", tcpProxy.Config.ListenPort, spec.NodePort)
 	err := tcpProxy.Start(ctx)
 	if err != nil {
 		logger.Infof("Error starting TCP proxy %v", err)
@@ -261,11 +284,14 @@ func (s *Server) watchProxy(ctx context.Context, spec ProxySpec, tcpProxy *proxy
 }
 
 func (s *Server) watchNodes(ctx context.Context) {
+	logger := log.GetLogger(ctx)
+	logger.Infof("starting node watcher")
 	for {
 		s.fetchNodes(ctx)
 
 		select {
 		case <-ctx.Done():
+			logger.Infof("stopping node watcher")
 			return
 		case <-time.After(60 * time.Second):
 			continue

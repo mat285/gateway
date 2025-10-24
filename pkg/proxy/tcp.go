@@ -6,8 +6,10 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/mat285/gateway/pkg/log"
+	"github.com/mat285/gateway/pkg/wait"
 )
 
 type TCPProxyConfig struct {
@@ -80,36 +82,78 @@ func (p *TCPProxy) handleConnection(ctx context.Context, conn net.Conn) {
 			logger.Infof("Error handling connection %v", err)
 		}
 	}()
-	upstream := p.getUpstream()
-	logger.Infof("Proxying to %s", upstream)
-	upstreamConn, err := net.Dial("tcp", upstream)
+	defer func() {
+		conn.Close()
+	}()
+	upstreamConn, err := p.getUpstreamConn(ctx)
 	if err != nil {
-		logger.Infof("Error dialing upstream %s %v", upstream, err)
+		logger.Infof("Error getting upstream connection %v", err)
 		return
 	}
 	defer upstreamConn.Close()
 
-	done := make(chan struct{})
-	defer close(done)
+	closeWrite := make(chan struct{})
+	closeRead := make(chan struct{})
+	wg := wait.NewGroup()
+	wg.Add(2)
 	go func() {
 		defer func() {
-			done <- struct{}{}
+			wg.Done()
+			closeRead <- struct{}{}
+			close(closeRead)
 		}()
 		io.Copy(conn, upstreamConn)
 	}()
 	go func() {
 		defer func() {
-			done <- struct{}{}
+			wg.Done()
+			closeWrite <- struct{}{}
+			close(closeWrite)
 		}()
 		io.Copy(upstreamConn, conn)
 	}()
 	select {
 	case <-ctx.Done():
-		return
-	case <-done:
-		<-done
+		conn.Close()
+		upstreamConn.Close()
+		wg.WaitTimeout(10 * time.Second)
+	case <-closeWrite:
+	case <-closeRead:
+		conn.Close()
+		upstreamConn.Close()
+		wg.Wait()
 		return
 	}
+}
+
+func (p *TCPProxy) getUpstreamConn(ctx context.Context) (net.Conn, error) {
+	logger := log.GetLogger(ctx)
+	upstreams := p.getUpstreams()
+	for _, upstream := range upstreams {
+		logger.Infof("Dialing upstream %s", upstream)
+		upstreamConn, err := net.Dial("tcp", upstream)
+		if err != nil {
+			logger.Errorf("Error dialing upstream %s %v", upstream, err)
+			continue
+		}
+		logger.Infof("Connected to upstream %s", upstream)
+		return upstreamConn, nil
+	}
+	return nil, fmt.Errorf("no upstreams available")
+}
+
+func (p *TCPProxy) getUpstreams() []string {
+	p.upstreamLock.Lock()
+	defer p.upstreamLock.Unlock()
+	upstream := p.upstream
+	p.upstream = (p.upstream + 1) % len(p.Config.Upstreams)
+
+	upstreams := make([]string, 0, len(p.Config.Upstreams))
+	for i := 0; i < len(p.Config.Upstreams); i++ {
+		index := (upstream + i) % len(p.Config.Upstreams)
+		upstreams = append(upstreams, p.Config.Upstreams[index])
+	}
+	return upstreams
 }
 
 func (p *TCPProxy) getUpstream() string {

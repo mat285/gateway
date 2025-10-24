@@ -1,0 +1,14 @@
+nextcloud.k8s.nori.ninja {
+    reverse_proxy {
+            to node2:30454 node3:30454 node6:30454 worker0:30454 worker2:30454 zstation":30454 node4:30454 node5:30454 "node0:30454 node1:30454
+
+            lb_policy round_robin
+            lb_retries 2
+
+            health_uri /status.php
+            health_interval 5s
+            health_timeout 2s
+            health_status 2xx
+	}
+}
+

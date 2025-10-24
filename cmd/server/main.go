@@ -22,7 +22,7 @@ func cmd(ctx context.Context) *cobra.Command {
 			})
 			ctx = log.WithLogger(ctx, logger)
 			server := server.NewServer(server.Config{
-				CaddyFilePath: "./Caddyfile",
+				CaddyFilePath: "_dev/Caddyfile",
 			})
 			return server.Start(ctx)
 		},
