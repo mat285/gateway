@@ -9,7 +9,7 @@ import (
 
 var (
 	machines = []string{
-		// "0.ts.gateway.nori.ninja",
+		"0.ts.gateway.nori.ninja",
 		"1.ts.gateway.nori.ninja",
 	}
 
