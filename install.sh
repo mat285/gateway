@@ -43,7 +43,7 @@ sudo chown root:root /bin/gateway
 sudo chmod a+x /bin/gateway
 
 curl --fail-with-body -Lo gateway.service https://github.com/mat285/gateway/releases/download/${VERSION}/gateway.service
-sudo mv gateway-server.service /etc/systemd/system/gateway.service
+sudo mv gateway.service /etc/systemd/system/gateway.service
 sudo chmod 644 /etc/systemd/system/gateway.service
 sudo chown root:root /etc/systemd/system/gateway.service
 
