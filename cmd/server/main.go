@@ -12,7 +12,8 @@ import (
 )
 
 func cmd(ctx context.Context) *cobra.Command {
-	return &cobra.Command{
+
+	cmd := &cobra.Command{
 		Use:   "server",
 		Short: "Start the server",
 		Long:  "Start the server",
@@ -27,6 +28,7 @@ func cmd(ctx context.Context) *cobra.Command {
 			return server.Start(ctx)
 		},
 	}
+	cmd.Flags().StringP("config-path", "c", "/etc/gateway/example.yml", "The path to the config file")
 }
 
 func main() {
