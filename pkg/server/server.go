@@ -171,7 +171,7 @@ func (s *Server) fetchServices(ctx context.Context) {
 		}
 	}
 	s.updateServiceProxies(ctx, portMap, reverseProxyMap)
-	// s.updateCaddy(ctx)
+	s.updateCaddy(ctx)
 }
 
 func (s *Server) updateServiceProxies(ctx context.Context, tcpPortMap map[string]string, reverseProxyMap map[string]ReverseProxyConfig) {
@@ -218,7 +218,11 @@ func (s *Server) updateCaddy(ctx context.Context) {
 			HealthUri:        reverseProxyConfig.HealthURI,
 		})
 	}
-	err := TryUpdateCaddy(ctx, specs, s.Config.CaddyFilePath)
+	nodes := make([]string, 0, len(s.Nodes))
+	for node := range s.Nodes {
+		nodes = append(nodes, node)
+	}
+	err := TryUpdateCaddy(ctx, specs, nodes, s.Config.CaddyFilePath)
 	if err != nil {
 		logger.Infof("error updating caddy %v", err)
 	}

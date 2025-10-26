@@ -26,6 +26,12 @@ const (
 	}
 }
 `
+
+	caddyNodeCheckStanzaTemplate = `
+%s.health.k8s.nori.ninja {
+        reverse_proxy %s:30888
+}
+`
 )
 
 type CaddySpec struct {
@@ -34,10 +40,13 @@ type CaddySpec struct {
 	HealthUri        string
 }
 
-func GenerateCaddyfile(ctx context.Context, reverseUpstreams []CaddySpec) (string, error) {
+func GenerateCaddyfile(ctx context.Context, reverseUpstreams []CaddySpec, nodes []string) (string, error) {
 	stanzas := make([]string, 0, len(reverseUpstreams))
 	for _, caddySpec := range reverseUpstreams {
 		stanzas = append(stanzas, GenerateCaddyfileStanza(caddySpec.Domain, caddySpec.ReverseUpstreams, caddySpec.HealthUri))
+	}
+	for _, node := range nodes {
+		stanzas = append(stanzas, fmt.Sprintf(caddyNodeCheckStanzaTemplate, node, node))
 	}
 	sort.Strings(stanzas)
 	return strings.Join(stanzas, "\n") + "\n", nil
@@ -48,14 +57,14 @@ func GenerateCaddyfileStanza(domain string, reverseUpstreams []string, healthUri
 	return fmt.Sprintf(caddyFileStanzaTemplate, domain, strings.Join(reverseUpstreams, " "), healthUri)
 }
 
-func TryUpdateCaddy(ctx context.Context, caddySpec []CaddySpec, caddyFilePath string) error {
+func TryUpdateCaddy(ctx context.Context, caddySpec []CaddySpec, nodes []string, caddyFilePath string) error {
 	logger := log.GetLogger(ctx)
 	logger.Infof("updating caddyfile from")
 	existing, err := os.ReadFile(caddyFilePath)
 	if err != nil {
 		return err
 	}
-	caddyfile, err := GenerateCaddyfile(ctx, caddySpec)
+	caddyfile, err := GenerateCaddyfile(ctx, caddySpec, nodes)
 	if err != nil {
 		logger.Infof("error generating caddyfile %v", err)
 		return err
