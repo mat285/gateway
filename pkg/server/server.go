@@ -77,7 +77,7 @@ func (s *Server) Start(ctx context.Context) error {
 	run(ctx, s.watchNodes)
 	run(ctx, s.watchServices)
 
-	err := wg.WaitTimeout(10 * time.Second)
+	err := wg.WaitContext(ctx)
 	if err != nil {
 		logger.Infof("error waiting for exit %v", err)
 	}

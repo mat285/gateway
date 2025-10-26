@@ -6,11 +6,11 @@ After=network.target
 Type=simple
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=gateway-server
+SyslogIdentifier=gateway
 User=root
 Group=root
 Environment=PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:/snap/bin
-ExecStart=/bin/gateway-server --config-path=/etc/gateway-server/config.yml
+ExecStart=/bin/gateway --config-path=/etc/gateway/example.yml
 Restart=always
 ExecReload=/bin/kill -HUP $MAINPID
 
