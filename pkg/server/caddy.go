@@ -12,6 +12,13 @@ import (
 )
 
 const (
+	caddyGlobalStanzaTemplate = `
+{
+        acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+%s
+`
 	caddyFileStanzaTemplate = `%s {
     reverse_proxy {
             to %s
@@ -49,7 +56,7 @@ func GenerateCaddyfile(ctx context.Context, reverseUpstreams []CaddySpec, nodes 
 		stanzas = append(stanzas, fmt.Sprintf(caddyNodeCheckStanzaTemplate, node, node))
 	}
 	sort.Strings(stanzas)
-	return strings.Join(stanzas, "\n") + "\n", nil
+	return fmt.Sprintf(caddyGlobalStanzaTemplate, strings.Join(stanzas, "\n")), nil
 }
 
 func GenerateCaddyfileStanza(domain string, reverseUpstreams []string, healthUri string) string {
