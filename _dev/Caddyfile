@@ -1,4 +1,9 @@
 
+{
+        acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+
 node0.health.k8s.nori.ninja {
         reverse_proxy node0:30888
 }

@@ -9,10 +9,11 @@ import (
 	"github.com/mat285/gateway/pkg/log"
 	"github.com/mat285/gateway/pkg/server"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 func cmd(ctx context.Context) *cobra.Command {
-
+	var configPath = ""
 	cmd := &cobra.Command{
 		Use:   "server",
 		Short: "Start the server",
@@ -22,13 +23,24 @@ func cmd(ctx context.Context) *cobra.Command {
 				Level: "info",
 			})
 			ctx = log.WithLogger(ctx, logger)
-			server := server.NewServer(server.Config{
+			config := server.Config{
 				CaddyFilePath: "_dev/Caddyfile",
-			})
+			}
+			if configPath != "" {
+				data, err := os.ReadFile(configPath)
+				if err != nil {
+					return err
+				}
+				err = yaml.Unmarshal(data, &config)
+				if err != nil {
+					return err
+				}
+			}
+			server := server.NewServer(config)
 			return server.Start(ctx)
 		},
 	}
-	cmd.Flags().StringP("config-path", "c", "/etc/gateway/example.yml", "The path to the config file")
+	cmd.PersistentFlags().StringVarP(&configPath, "config-path", "c", "", "The path to the config file")
 	return cmd
 }
 
