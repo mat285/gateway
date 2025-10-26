@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	caddyFileStanzeTemplate = `%s {
+	caddyFileStanzaTemplate = `%s {
     reverse_proxy {
             to %s
 
@@ -44,7 +44,8 @@ func GenerateCaddyfile(ctx context.Context, reverseUpstreams []CaddySpec) (strin
 }
 
 func GenerateCaddyfileStanza(domain string, reverseUpstreams []string, healthUri string) string {
-	return fmt.Sprintf(caddyFileStanzeTemplate, domain, strings.Join(reverseUpstreams, " "), healthUri)
+	sort.Strings(reverseUpstreams)
+	return fmt.Sprintf(caddyFileStanzaTemplate, domain, strings.Join(reverseUpstreams, " "), healthUri)
 }
 
 func TryUpdateCaddy(ctx context.Context, caddySpec []CaddySpec, caddyFilePath string) error {
@@ -63,6 +64,10 @@ func TryUpdateCaddy(ctx context.Context, caddySpec []CaddySpec, caddyFilePath st
 		logger.Infof("no changes to caddyfile")
 		return nil
 	}
+	fmt.Println("--------------------------------")
+	fmt.Println(caddyfile)
+	fmt.Println("--------------------------------")
+	fmt.Println(string(existing))
 	logger.Infof("updating caddyfile from %s to %s", existing, caddyfile)
 
 	logger.Infof("writing caddyfile to %s", caddyFilePath)

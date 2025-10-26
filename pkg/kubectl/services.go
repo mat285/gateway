@@ -28,11 +28,8 @@ type ServiceSpec struct {
 }
 
 type ServicePort struct {
-	Name       string      `json:"name"`
-	Port       IntOrString `json:"port"`
-	Protocol   string      `json:"protocol"`
-	TargetPort IntOrString `json:"targetPort"`
-	NodePort   IntOrString `json:"nodePort"`
+	Name     string `json:"name"`
+	NodePort int    `json:"nodePort"`
 }
 
 type IntOrString struct {

@@ -153,20 +153,21 @@ func (s *Server) fetchServices(ctx context.Context) {
 			continue
 		}
 		for _, port := range service.Spec.Ports {
-			if port.NodePort.StringVal == "" {
+			if port.NodePort == 0 {
 				continue
 			}
-			if gatewayPort, ok := gatewayMap[port.NodePort.StringVal]; ok {
-				logger.Infof("gateway port found for service %s/%s port %s -> %s", service.Metadata.Namespace, service.Metadata.Name, port.NodePort.StringVal, gatewayPort)
-				portMap[gatewayPort] = port.NodePort.StringVal
+			strVal := fmt.Sprintf("%d", port.NodePort)
+			if gatewayPort, ok := gatewayMap[strVal]; ok {
+				logger.Infof("gateway port found for service %s/%s port %s -> %s", service.Metadata.Namespace, service.Metadata.Name, strVal, gatewayPort)
+				portMap[gatewayPort] = strVal
 				continue
 			}
-			if config, ok := portConfigMap[port.NodePort.StringVal]; ok {
-				logger.Infof("reverse proxy config found for service %s/%s port %s", service.Metadata.Namespace, service.Metadata.Name, port.NodePort.StringVal)
-				reverseProxyMap[port.NodePort.StringVal] = config
+			if config, ok := portConfigMap[strVal]; ok {
+				logger.Infof("reverse proxy config found for service %s/%s port %s", service.Metadata.Namespace, service.Metadata.Name, strVal)
+				reverseProxyMap[strVal] = config
 				continue
 			}
-			logger.Infof("no gateway or reverse proxy config found for service %s/%s port %s", service.Metadata.Namespace, service.Metadata.Name, port.NodePort.StringVal)
+			logger.Infof("no gateway or reverse proxy config found for service %s/%s port %s", service.Metadata.Namespace, service.Metadata.Name, strVal)
 		}
 	}
 	s.updateServiceProxies(ctx, portMap, reverseProxyMap)

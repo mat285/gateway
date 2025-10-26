@@ -11,5 +11,9 @@ func GetNodes(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return strings.Split(strings.TrimSpace(string(output)), " "), nil
+	out := strings.TrimSpace(string(output))
+	out = strings.Trim(out, "\"")
+	out = strings.TrimSpace(out)
+	nodes := strings.Split(out, " ")
+	return nodes, nil
 }
