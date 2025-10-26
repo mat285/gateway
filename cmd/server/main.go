@@ -29,6 +29,7 @@ func cmd(ctx context.Context) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("config-path", "c", "/etc/gateway/example.yml", "The path to the config file")
+	return cmd
 }
 
 func main() {
