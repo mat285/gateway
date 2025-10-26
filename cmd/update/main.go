@@ -13,7 +13,7 @@ var (
 		"1.ts.gateway.nori.ninja",
 	}
 
-	version = "v0.5.4" // Update this to the latest version of your script
+	version = "v0.5.5" // Update this to the latest version of your script
 
 	commands = []string{
 		`sh -c "$(curl -fsSL https://github.com/mat285/gateway/releases/download/` + version + `/install.sh)"`,
