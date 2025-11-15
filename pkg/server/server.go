@@ -16,6 +16,7 @@ import (
 type Config struct {
 	ServiceRefreshIntervalSeconds int    `yaml:"serviceRefreshIntervalSeconds"`
 	CaddyFilePath                 string `yaml:"caddyFilePath"`
+	CaddyTLSCertificateDirectory  string `yaml:"caddyTLSCertificateDirectory"`
 }
 
 type ProxySpec struct {
@@ -139,9 +140,11 @@ func (s *Server) fetchServices(ctx context.Context) {
 					continue
 				}
 				reverseProxyConfig := ReverseProxyConfig{
-					NodePort:  parts[0],
-					Domain:    parts[1],
-					HealthURI: parts[2],
+					NodePort:           parts[0],
+					Domain:             parts[1],
+					HealthURI:          parts[2],
+					TLSSecretNamespace: service.Metadata.Namespace,
+					TLSSecretName:      service.Metadata.Annotations[ServiceAnnotationGatewayTLSSecret],
 				}
 				logger.Infof("reverse proxy %s %s", reverseProxyConfig.Domain, reverseProxyConfig.NodePort)
 				portConfigMap[reverseProxyConfig.NodePort] = reverseProxyConfig
@@ -213,16 +216,18 @@ func (s *Server) updateCaddy(ctx context.Context) {
 	specs := make([]CaddySpec, 0, len(s.ReverseProxies))
 	for nodePort, reverseProxyConfig := range s.ReverseProxies {
 		specs = append(specs, CaddySpec{
-			Domain:           reverseProxyConfig.Domain,
-			ReverseUpstreams: getUpstreamsForNodePort(s.Nodes, nodePort),
-			HealthUri:        reverseProxyConfig.HealthURI,
+			Domain:             reverseProxyConfig.Domain,
+			ReverseUpstreams:   getUpstreamsForNodePort(s.Nodes, nodePort),
+			HealthUri:          reverseProxyConfig.HealthURI,
+			TLSSecretName:      reverseProxyConfig.TLSSecretName,
+			TLSSecretNamespace: reverseProxyConfig.TLSSecretNamespace,
 		})
 	}
 	nodes := make([]string, 0, len(s.Nodes))
 	for node := range s.Nodes {
 		nodes = append(nodes, node)
 	}
-	err := TryUpdateCaddy(ctx, specs, nodes, s.Config.CaddyFilePath)
+	err := TryUpdateCaddy(ctx, specs, nodes, s.Config.CaddyFilePath, s.Config.CaddyTLSCertificateDirectory)
 	if err != nil {
 		logger.Infof("error updating caddy %v", err)
 	}

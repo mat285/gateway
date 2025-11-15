@@ -58,7 +58,7 @@ zstation.health.k8s.nori.ninja {
         reverse_proxy zstation:30888
 }
 
-jackbox.nori.ninja.k8s.nori.ninja {
+jackbox.nori.ninja {
     reverse_proxy {
             to node0:30765 node1:30765 node2:30765 node3:30765 node4:30765 node5:30765 node6:30765 worker0:30765 worker1:30765 worker2:30765 zstation:30765
 
@@ -66,20 +66,6 @@ jackbox.nori.ninja.k8s.nori.ninja {
             lb_retries 2
 
             health_uri /healthz
-            health_interval 5s
-            health_timeout 2s
-            health_status 2xx
-	}
-}
-
-nextcloud.k8s.nori.ninja {
-    reverse_proxy {
-            to node0:30454 node1:30454 node2:30454 node3:30454 node4:30454 node5:30454 node6:30454 worker0:30454 worker1:30454 worker2:30454 zstation:30454
-
-            lb_policy round_robin
-            lb_retries 2
-
-            health_uri /status.php
             health_interval 5s
             health_timeout 2s
             health_status 2xx
@@ -108,20 +94,6 @@ rpeg.io {
             lb_retries 2
 
             health_uri /
-            health_interval 5s
-            health_timeout 2s
-            health_status 2xx
-	}
-}
-
-wikivote.k8s.nori.ninja {
-    reverse_proxy {
-            to node0:30111 node1:30111 node2:30111 node3:30111 node4:30111 node5:30111 node6:30111 worker0:30111 worker1:30111 worker2:30111 zstation:30111
-
-            lb_policy round_robin
-            lb_retries 2
-
-            health_uri /healthz
             health_interval 5s
             health_timeout 2s
             health_status 2xx

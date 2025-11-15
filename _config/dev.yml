@@ -1,0 +1,3 @@
+caddyFilePath: _dev/Caddyfile
+caddyTLSCertificateDirectory: _dev/
+serviceRefreshIntervalSeconds: 30

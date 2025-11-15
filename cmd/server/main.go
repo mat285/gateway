@@ -23,9 +23,7 @@ func cmd(ctx context.Context) *cobra.Command {
 				Level: "info",
 			})
 			ctx = log.WithLogger(ctx, logger)
-			config := server.Config{
-				CaddyFilePath: "_dev/Caddyfile",
-			}
+			config := server.Config{}
 			if configPath != "" {
 				data, err := os.ReadFile(configPath)
 				if err != nil {
